@@ -1,4 +1,5 @@
 # import necessary libraries and modules
+# /home/parallels/anaconda3/envs/game/lib/python3.10/site-packages/vis_nav_game
 from vis_nav_game import Player, Action, Phase
 import pygame
 import cv2
@@ -24,6 +25,9 @@ class KeyboardPlayerPyGame(Player):
         self.count = 0  # Counter for saving images
         self.save_dir = "data/images/"  # Directory to save images to
 
+        # For debug
+        self.flag = True
+
         # Initialize SIFT detector
         # SIFT stands for Scale-Invariant Feature Transform
         self.sift = cv2.SIFT_create()
@@ -45,10 +49,14 @@ class KeyboardPlayerPyGame(Player):
 
         # Define key mappings for actions
         self.keymap = {
-            pygame.K_LEFT: Action.LEFT,
-            pygame.K_RIGHT: Action.RIGHT,
-            pygame.K_UP: Action.FORWARD,
-            pygame.K_DOWN: Action.BACKWARD,
+            # pygame.K_LEFT: Action.LEFT,
+            # pygame.K_RIGHT: Action.RIGHT,
+            # pygame.K_UP: Action.FORWARD,
+            # pygame.K_DOWN: Action.BACKWARD,
+            pygame.K_a: Action.LEFT,
+            pygame.K_d: Action.RIGHT,
+            pygame.K_w: Action.FORWARD,
+            pygame.K_s: Action.BACKWARD,
             pygame.K_SPACE: Action.CHECKIN,
             pygame.K_ESCAPE: Action.QUIT
         }
@@ -133,6 +141,41 @@ class KeyboardPlayerPyGame(Player):
         path = self.save_dir + str(id) + ".jpg"
         img = cv2.imread(path)
         cv2.imshow(window_name, img)
+        cv2.waitKey(1)
+
+    def display_2_imgs_from_id(self, id1, id2, window_name):
+        """
+        Display 2 images from database based on its ID using OpenCV in 2x1 grid manner
+        """
+        #     path = self.save_dir + str(id) + ".jpg"
+        #     img = cv2.imread(path)
+        #     cv2.imshow(window_name, img)
+        #     cv2.waitKey(1)
+        # Create a 2x2 grid of the 4 views of target location
+        hor1 = cv2.hconcat(targets[:2])
+        hor2 = cv2.hconcat(targets[2:])
+        concat_img = cv2.vconcat([hor1, hor2])
+
+        w, h = concat_img.shape[:2]
+        
+        color = (0, 0, 0)
+
+        concat_img = cv2.line(concat_img, (int(h/2), 0), (int(h/2), w), color, 2)
+        concat_img = cv2.line(concat_img, (0, int(w/2)), (h, int(w/2)), color, 2)
+
+        w_offset = 25
+        h_offset = 10
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        line = cv2.LINE_AA
+        size = 0.75
+        stroke = 1
+
+        cv2.putText(concat_img, 'Front View', (h_offset, w_offset), font, size, color, stroke, line)
+        cv2.putText(concat_img, 'Right View', (int(h/2) + h_offset, w_offset), font, size, color, stroke, line)
+        cv2.putText(concat_img, 'Back View', (h_offset, int(w/2) + w_offset), font, size, color, stroke, line)
+        cv2.putText(concat_img, 'Left View', (int(h/2) + h_offset, int(w/2) + w_offset), font, size, color, stroke, line)
+
+        cv2.imshow(f'KeyboardPlayer:target_images', concat_img)
         cv2.waitKey(1)
 
     def compute_sift_features(self):
@@ -302,10 +345,11 @@ class KeyboardPlayerPyGame(Player):
         # If game has started
         if self._state:
             # If in exploration stage
-            if self._state[1] == Phase.EXPLORATION:
+            if self._state[1] == Phase.EXPLORATION and self.flag:
                 # TODO: could you employ any technique to strategically perform exploration instead of random exploration
                 # to improve performance (reach target location faster)?
 
+                # DEBUG:
                 # Get full absolute save path
                 save_dir_full = os.path.join(os.getcwd(),self.save_dir)
                 save_path = save_dir_full + str(self.count) + ".jpg"
@@ -315,10 +359,15 @@ class KeyboardPlayerPyGame(Player):
                 # Save current FPV
                 cv2.imwrite(save_path, fpv)
 
+                keys = pygame.key.get_pressed()
+                if keys[pygame.K_q]:
+                    print('stat: ', self.get_state()[4])
+
                 # Get VLAD embedding for current FPV and add it to the database
                 VLAD = self.get_VLAD(self.fpv)
                 self.database.append(VLAD)
                 self.count = self.count + 1
+
             # If in navigation stage
             elif self._state[1] == Phase.NAVIGATION:
                 # TODO: could you do something else, something smarter than simply getting the image closest to the current FPV?
@@ -333,6 +382,8 @@ class KeyboardPlayerPyGame(Player):
         rgb = convert_opencv_img_to_pygame(fpv)
         self.screen.blit(rgb, (0, 0))
         pygame.display.update()
+
+        self.flag = not self.flag
 
 
 if __name__ == "__main__":
