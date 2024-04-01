@@ -143,39 +143,22 @@ class KeyboardPlayerPyGame(Player):
         cv2.imshow(window_name, img)
         cv2.waitKey(1)
 
-    def display_2_imgs_from_id(self, id1, id2, window_name):
+    def display_two_imgs_from_id(self, id1, id2, window_name):
         """
         Display 2 images from database based on its ID using OpenCV in 2x1 grid manner
         """
-        #     path = self.save_dir + str(id) + ".jpg"
-        #     img = cv2.imread(path)
-        #     cv2.imshow(window_name, img)
-        #     cv2.waitKey(1)
-        # Create a 2x2 grid of the 4 views of target location
-        hor1 = cv2.hconcat(targets[:2])
-        hor2 = cv2.hconcat(targets[2:])
-        concat_img = cv2.vconcat([hor1, hor2])
-
-        w, h = concat_img.shape[:2]
-        
-        color = (0, 0, 0)
-
-        concat_img = cv2.line(concat_img, (int(h/2), 0), (int(h/2), w), color, 2)
-        concat_img = cv2.line(concat_img, (0, int(w/2)), (h, int(w/2)), color, 2)
-
-        w_offset = 25
-        h_offset = 10
-        font = cv2.FONT_HERSHEY_SIMPLEX
-        line = cv2.LINE_AA
-        size = 0.75
-        stroke = 1
-
-        cv2.putText(concat_img, 'Front View', (h_offset, w_offset), font, size, color, stroke, line)
-        cv2.putText(concat_img, 'Right View', (int(h/2) + h_offset, w_offset), font, size, color, stroke, line)
-        cv2.putText(concat_img, 'Back View', (h_offset, int(w/2) + w_offset), font, size, color, stroke, line)
-        cv2.putText(concat_img, 'Left View', (int(h/2) + h_offset, int(w/2) + w_offset), font, size, color, stroke, line)
-
-        cv2.imshow(f'KeyboardPlayer:target_images', concat_img)
+        path1 = self.save_dir + str(id1) + ".jpg"
+        path2 = self.save_dir + str(id2) + ".jpg"
+        img1 = cv2.imread(path1)
+        img2 = cv2.imread(path2)
+        try:
+            concat_img = cv2.hconcat([img1, img2])
+            w, h = concat_img.shape[:2]
+            color = (0, 0, 0)
+            concat_img = cv2.line(concat_img, (int(h/2), 0), (int(h/2), w), color, 2)
+            cv2.imshow(window_name, concat_img)
+        except:
+            cv2.imshow(window_name, img1)
         cv2.waitKey(1)
 
     def compute_sift_features(self):
@@ -307,9 +290,10 @@ class KeyboardPlayerPyGame(Player):
         # In other words, get the image from the database that closely matches current FPV
         index = self.get_neighbor(self.fpv)
         # Display the image 5 frames ahead of the neighbor, so that next best view is not exactly same as current FPV
-        self.display_img_from_id(index+5, f'Next Best View')
+        # self.display_img_from_id(index+5, f'Next Best View')
+        self.display_two_imgs_from_id(index+2, index+5, f'Next Best Views')
         # Display the next best view id along with the goal id to understand how close/far we are from the goal
-        print(f'Next View ID: {index+5} || Goal ID: {self.goal}')
+        print(f'Next View ID: {index+2}, {index+5} || Goal ID: {self.goal}')
 
     def see(self, fpv):
         """
@@ -345,45 +329,50 @@ class KeyboardPlayerPyGame(Player):
         # If game has started
         if self._state:
             # If in exploration stage
-            if self._state[1] == Phase.EXPLORATION and self.flag:
+            if self._state[1] == Phase.EXPLORATION:
                 # TODO: could you employ any technique to strategically perform exploration instead of random exploration
                 # to improve performance (reach target location faster)?
 
-                # DEBUG:
-                # Get full absolute save path
-                save_dir_full = os.path.join(os.getcwd(),self.save_dir)
-                save_path = save_dir_full + str(self.count) + ".jpg"
-                # Create path if it does not exist
-                if not os.path.isdir(save_dir_full):
-                    os.mkdir(save_dir_full)
-                # Save current FPV
-                cv2.imwrite(save_path, fpv)
-
                 keys = pygame.key.get_pressed()
-                if keys[pygame.K_q]:
-                    print('stat: ', self.get_state()[4])
 
-                # Get VLAD embedding for current FPV and add it to the database
-                VLAD = self.get_VLAD(self.fpv)
-                self.database.append(VLAD)
-                self.count = self.count + 1
+                if keys[pygame.K_q]:
+                        print('stat: ', self.get_state()[4])
+
+                # Only save FPV when moving
+                if keys[pygame.K_w] or keys[pygame.K_a] or keys[pygame.K_s] or keys[pygame.K_d]:
+                    self.flag = not self.flag
+                    if self.flag:
+                        # Get full absolute save path
+                        save_dir_full = os.path.join(os.getcwd(),self.save_dir)
+                        save_path = save_dir_full + str(self.count) + ".jpg"
+                        # Create path if it does not exist
+                        if not os.path.isdir(save_dir_full):
+                            os.mkdir(save_dir_full)
+                        # Save current FPV
+                        cv2.imwrite(save_path, fpv)
+
+                        # Get VLAD embedding for current FPV and add it to the database
+                        VLAD = self.get_VLAD(self.fpv)
+                        self.database.append(VLAD)
+                        self.count = self.count + 1
+
 
             # If in navigation stage
             elif self._state[1] == Phase.NAVIGATION:
                 # TODO: could you do something else, something smarter than simply getting the image closest to the current FPV?
-                
-                # Key the state of the keys
-                keys = pygame.key.get_pressed()
-                # If 'q' key is pressed, then display the next best view based on the current FPV
-                if keys[pygame.K_q]:
+                self.flag = not self.flag
+                if self.flag:
                     self.display_next_best_view()
+                # # Key the state of the keys
+                # keys = pygame.key.get_pressed()
+                # # If 'q' key is pressed, then display the next best view based on the current FPV
+                # if keys[pygame.K_q]:
+                #     self.display_next_best_view()
 
         # Display the first-person view image on the pygame screen
         rgb = convert_opencv_img_to_pygame(fpv)
         self.screen.blit(rgb, (0, 0))
         pygame.display.update()
-
-        self.flag = not self.flag
 
 
 if __name__ == "__main__":
