@@ -25,8 +25,9 @@ class KeyboardPlayerPyGame(Player):
         self.count = 0  # Counter for saving images
         self.save_dir = "data/images/"  # Directory to save images to
 
-        # For debug
-        self.flag = True
+        self.generateDatabase = True
+        self.generateCodebook = True
+        self.rotationFlag = True
 
         # Initialize SIFT detector
         # SIFT stands for Scale-Invariant Feature Transform
@@ -146,19 +147,22 @@ class KeyboardPlayerPyGame(Player):
             print('error displaying image')
         cv2.waitKey(1)
 
-    def display_two_imgs_from_id(self, id1, id2, window_name):
+    def display_imgs_from_id(self, id1, id2, id3, window_name):
         """
         Display 2 images from database based on its ID using OpenCV in 2x1 grid manner
         """
         path1 = self.save_dir + str(id1) + ".jpg"
         path2 = self.save_dir + str(id2) + ".jpg"
+        path3 = self.save_dir + str(id3) + ".jpg"
         img1 = cv2.imread(path1)
         img2 = cv2.imread(path2)
+        img3 = cv2.imread(path3)
         try:
-            concat_img = cv2.hconcat([img1, img2])
+            concat_img = cv2.hconcat([img1, img2, img3])
             w, h = concat_img.shape[:2]
             color = (0, 0, 0)
-            concat_img = cv2.line(concat_img, (int(h/2), 0), (int(h/2), w), color, 2)
+            concat_img = cv2.line(concat_img, (int(h/3), 0), (int(h/3), w), color, 2)
+            concat_img = cv2.line(concat_img, (int(2*h/3), 0), (int(2*h/3), w), color, 2)
             cv2.imshow(window_name, concat_img)
         except:
             print('error displaying image')
@@ -243,23 +247,25 @@ class KeyboardPlayerPyGame(Player):
         """
         # If this function is called after the game has started
         if self.count > 0:
-            # below 3 code lines to be run only once to generate the codebook
-            # Compute sift features for images in the database
-            sift_descriptors = self.compute_sift_features()
+            if self.generateCodebook:
+                print('Making codebook...')
+                # below 3 code lines to be run only once to generate the codebook
+                # Compute sift features for images in the database
+                sift_descriptors = self.compute_sift_features()
 
-            # KMeans clustering algorithm is used to create a visual vocabulary, also known as a codebook,
-            # from the computed SIFT descriptors.
-            # n_clusters = 64: Specifies the number of clusters (visual words) to be created in the codebook. In this case, 64 clusters are being used.
-            # init='k-means++': This specifies the method for initializing centroids. 'k-means++' is a smart initialization technique that selects initial 
-            # cluster centers in a way that speeds up convergence.
-            # n_init=10: Specifies the number of times the KMeans algorithm will be run with different initial centroid seeds. The final result will be 
-            # the best output of n_init consecutive runs in terms of inertia (sum of squared distances).
-            # The fit() method of KMeans is then called with sift_descriptors as input data. 
-            # This fits the KMeans model to the SIFT descriptors, clustering them into n_clusters clusters based on their feature vectors
+                # KMeans clustering algorithm is used to create a visual vocabulary, also known as a codebook,
+                # from the computed SIFT descriptors.
+                # n_clusters = 64: Specifies the number of clusters (visual words) to be created in the codebook. In this case, 64 clusters are being used.
+                # init='k-means++': This specifies the method for initializing centroids. 'k-means++' is a smart initialization technique that selects initial 
+                # cluster centers in a way that speeds up convergence.
+                # n_init=10: Specifies the number of times the KMeans algorithm will be run with different initial centroid seeds. The final result will be 
+                # the best output of n_init consecutive runs in terms of inertia (sum of squared distances).
+                # The fit() method of KMeans is then called with sift_descriptors as input data. 
+                # This fits the KMeans model to the SIFT descriptors, clustering them into n_clusters clusters based on their feature vectors
 
-            # TODO: try tuning the function parameters for better performance
-            codebook = KMeans(n_clusters = 64, init='k-means++', n_init=10, verbose=1).fit(sift_descriptors)
-            pickle.dump(codebook, open("codebook.pkl", "wb"))
+                # TODO: try tuning the function parameters for better performance
+                codebook = KMeans(n_clusters = 64, init='k-means++', n_init=10, verbose=1).fit(sift_descriptors)
+                pickle.dump(codebook, open("codebook.pkl", "wb"))
 
             # Build a BallTree for fast nearest neighbor search
             # We create this tree to efficiently perform nearest neighbor searches later on which will help us navigate and reach the target location
@@ -293,7 +299,7 @@ class KeyboardPlayerPyGame(Player):
         index = self.get_neighbor(self.fpv)
         # Display the image 5 frames ahead of the neighbor, so that next best view is not exactly same as current FPV
         # self.display_img_from_id(index+5, f'Next Best View')
-        self.display_two_imgs_from_id(index+2, index+5, f'Next Best Views')
+        self.display_imgs_from_id(index+2, index+5, self.goal, f'Next Best Views')
         # Display the next best view id along with the goal id to understand how close/far we are from the goal
         print(f'Next View ID: {index+2}, {index+5} || Goal ID: {self.goal}')
 
@@ -342,8 +348,8 @@ class KeyboardPlayerPyGame(Player):
 
                 # Only save FPV when moving
                 if keys[pygame.K_w] or keys[pygame.K_a] or keys[pygame.K_s] or keys[pygame.K_d]:
-                    self.flag = not self.flag
-                    if self.flag:
+                    self.rotationFlag = not self.rotationFlag
+                    if self.rotationFlag and self.generateDatabase:
                         # Get full absolute save path
                         save_dir_full = os.path.join(os.getcwd(),self.save_dir)
                         save_path = save_dir_full + str(self.count) + ".jpg"
@@ -362,8 +368,8 @@ class KeyboardPlayerPyGame(Player):
             # If in navigation stage
             elif self._state[1] == Phase.NAVIGATION:
                 # TODO: could you do something else, something smarter than simply getting the image closest to the current FPV?
-                self.flag = not self.flag
-                if self.flag:
+                self.rotationFlag = not self.rotationFlag
+                if self.rotationFlag:
                     self.display_next_best_view()
                 # # Key the state of the keys
                 # keys = pygame.key.get_pressed()
