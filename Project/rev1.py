@@ -25,8 +25,8 @@ class KeyboardPlayerPyGame(Player):
         self.count = 0  # Counter for saving images
         self.save_dir = "data/images/"  # Directory to save images to
 
-        self.generateDatabase = True
-        self.generateCodebook = True
+        self.generateDatabase = True # Default True
+        self.generateCodebook = False # Default False
         self.rotationFlag = True
 
         # Initialize SIFT detector
@@ -247,8 +247,13 @@ class KeyboardPlayerPyGame(Player):
         """
         # If this function is called after the game has started
         if self.count > 0:
+            if self.generateDatabase:
+                pickle.dump(self.database, open("database.pkl", "wb"))
+            else:
+                self.database = pickle.load(open("database.pkl", "rb"))
+
             if self.generateCodebook:
-                print('Making codebook...')
+                print('Making codebook...', end="")
                 # below 3 code lines to be run only once to generate the codebook
                 # Compute sift features for images in the database
                 sift_descriptors = self.compute_sift_features()
@@ -266,6 +271,7 @@ class KeyboardPlayerPyGame(Player):
                 # TODO: try tuning the function parameters for better performance
                 codebook = KMeans(n_clusters = 64, init='k-means++', n_init=10, verbose=1).fit(sift_descriptors)
                 pickle.dump(codebook, open("codebook.pkl", "wb"))
+                print('Finish')
 
             # Build a BallTree for fast nearest neighbor search
             # We create this tree to efficiently perform nearest neighbor searches later on which will help us navigate and reach the target location
@@ -342,28 +348,26 @@ class KeyboardPlayerPyGame(Player):
                 # to improve performance (reach target location faster)?
 
                 keys = pygame.key.get_pressed()
-
                 if keys[pygame.K_q]:
                         print('stat: ', self.get_state()[4])
+                if self.generateDatabase:
+                    # Only save FPV when moving
+                    if keys[pygame.K_w] or keys[pygame.K_a] or keys[pygame.K_s] or keys[pygame.K_d]:
+                        self.rotationFlag = not self.rotationFlag
+                        if self.rotationFlag:
+                            # Get full absolute save path
+                            save_dir_full = os.path.join(os.getcwd(),self.save_dir)
+                            save_path = save_dir_full + str(self.count) + ".jpg"
+                            # Create path if it does not exist
+                            if not os.path.isdir(save_dir_full):
+                                os.mkdir(save_dir_full)
+                            # Save current FPV
+                            cv2.imwrite(save_path, fpv)
 
-                # Only save FPV when moving
-                if keys[pygame.K_w] or keys[pygame.K_a] or keys[pygame.K_s] or keys[pygame.K_d]:
-                    self.rotationFlag = not self.rotationFlag
-                    if self.rotationFlag and self.generateDatabase:
-                        # Get full absolute save path
-                        save_dir_full = os.path.join(os.getcwd(),self.save_dir)
-                        save_path = save_dir_full + str(self.count) + ".jpg"
-                        # Create path if it does not exist
-                        if not os.path.isdir(save_dir_full):
-                            os.mkdir(save_dir_full)
-                        # Save current FPV
-                        cv2.imwrite(save_path, fpv)
-
-                        # Get VLAD embedding for current FPV and add it to the database
-                        VLAD = self.get_VLAD(self.fpv)
-                        self.database.append(VLAD)
-                        self.count = self.count + 1
-
+                            # Get VLAD embedding for current FPV and add it to the database
+                            VLAD = self.get_VLAD(self.fpv)
+                            self.database.append(VLAD)
+                            self.count = self.count + 1
 
             # If in navigation stage
             elif self._state[1] == Phase.NAVIGATION:

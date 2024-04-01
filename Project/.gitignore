@@ -1,4 +1,4 @@
 vis_nav_player.log
-*.pkl
+database.pkl
 data/images
 data/save
