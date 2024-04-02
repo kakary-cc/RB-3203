@@ -25,7 +25,7 @@ class KeyboardPlayerPyGame(Player):
         self.count = 0  # Counter for saving images
         self.save_dir = "data/images/"  # Directory to save images to
 
-        self.generateDatabase = True # Default True
+        self.generateDatabase = False # Default True
         self.generateCodebook = False # Default False
         self.rotationFlag = True
 
@@ -247,10 +247,12 @@ class KeyboardPlayerPyGame(Player):
         """
         # If this function is called after the game has started
         if self.count > 0:
+
             if self.generateDatabase:
-                pickle.dump(self.database, open("database.pkl", "wb"))
+                pickle.dump([self.count, self.database], open("database.pkl", "wb"))
             else:
-                self.database = pickle.load(open("database.pkl", "rb"))
+                [_, self.database] = pickle.load(open("database.pkl", "rb"))
+                print("Loaded database from pickle")
 
             if self.generateCodebook:
                 print('Making codebook...', end="")
@@ -265,7 +267,7 @@ class KeyboardPlayerPyGame(Player):
                 # cluster centers in a way that speeds up convergence.
                 # n_init=10: Specifies the number of times the KMeans algorithm will be run with different initial centroid seeds. The final result will be 
                 # the best output of n_init consecutive runs in terms of inertia (sum of squared distances).
-                # The fit() method of KMeans is then called with sift_descriptors as input data. 
+                # The fit() method of KMeans pis then called with sift_descriptors as input data. 
                 # This fits the KMeans model to the SIFT descriptors, clustering them into n_clusters clusters based on their feature vectors
 
                 # TODO: try tuning the function parameters for better performance
@@ -368,6 +370,8 @@ class KeyboardPlayerPyGame(Player):
                             VLAD = self.get_VLAD(self.fpv)
                             self.database.append(VLAD)
                             self.count = self.count + 1
+                else:
+                    self.count = 1
 
             # If in navigation stage
             elif self._state[1] == Phase.NAVIGATION:
