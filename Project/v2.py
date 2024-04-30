@@ -3,6 +3,7 @@
 from vis_nav_game import Player, Action, Phase
 import pygame
 import cv2
+import sys
 
 import numpy as np
 import os
@@ -25,6 +26,7 @@ class KeyboardPlayerPyGame(Player):
         self.count = 0  # Counter for saving images
         self.save_dir = "data/images/"  # Directory to save images to
 
+        if (sys.argv[1] and sys.argv[1] == ''): print(sys.argv)
         self.generateDatabase = False # Default True
         self.generateCodebook = False # Default False
         self.rotationFlag = True
