@@ -4,6 +4,7 @@ from vis_nav_game import Player, Action, Phase
 import pygame
 import cv2
 import sys
+import math
 
 import numpy as np
 import os
@@ -11,6 +12,9 @@ import pickle
 from sklearn.cluster import KMeans
 from sklearn.neighbors import BallTree
 
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+RED = (255, 0, 0)
 
 # Define a class for a player controlled by keyboard input using pygame
 class KeyboardPlayerPyGame(Player):
@@ -51,6 +55,14 @@ class KeyboardPlayerPyGame(Player):
         # Initialize database for storing VLAD descriptors of FPV
         self.database = []
 
+        # Map drawing
+        self.player_pos = [0, 0]
+        self.player_angle = math.pi / 2
+        self.player_xspeed = 2
+        self.player_rspeed = 0.0427
+        self.path = []
+        self.arrow_points = [(0, -15), (10, 15), (0, 10), (-10, 15)]
+
     def reset(self):
         # Reset the player state
         self.fpv = None
@@ -62,10 +74,6 @@ class KeyboardPlayerPyGame(Player):
 
         # Define key mappings for actions
         self.keymap = {
-            # pygame.K_LEFT: Action.LEFT,
-            # pygame.K_RIGHT: Action.RIGHT,
-            # pygame.K_UP: Action.FORWARD,
-            # pygame.K_DOWN: Action.BACKWARD,
             pygame.K_a: Action.LEFT,
             pygame.K_d: Action.RIGHT,
             pygame.K_w: Action.FORWARD,
@@ -338,7 +346,12 @@ class KeyboardPlayerPyGame(Player):
         # This allows subsequent rendering of the first-person view image onto the pygame screen
         if self.screen is None:
             h, w, _ = fpv.shape
-            self.screen = pygame.display.set_mode((w, h))
+            self.screen = pygame.display.set_mode((w*2, h))
+            self.screen = pygame.display.set_mode((800+w, 800))
+            self.player_pos = [400+w, 750]
+            self.path = [self.player_pos[:]]
+            # Set speed to FPS
+            # self.player_speed = self.get_state()[4]
 
         def convert_opencv_img_to_pygame(opencv_image):
             """
@@ -356,12 +369,26 @@ class KeyboardPlayerPyGame(Player):
 
         # If game has started
         if self._state:
+            
+            self.screen.fill(WHITE)
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_w]:
+                self.player_pos[0] += self.player_xspeed * math.cos(self.player_angle)
+                self.player_pos[1] -= self.player_xspeed * math.sin(self.player_angle)
+            if keys[pygame.K_s]:
+                self.player_pos[0] -= self.player_xspeed * math.cos(self.player_angle)
+                self.player_pos[1] += self.player_xspeed * math.sin(self.player_angle)
+            if keys[pygame.K_a]:
+                self.player_angle += self.player_rspeed
+            if keys[pygame.K_d]:
+                self.player_angle -= self.player_rspeed
+
             # If in exploration stage
             if self._state[1] == Phase.EXPLORATION:
                 # TODO: could you employ any technique to strategically perform exploration instead of random exploration
                 # to improve performance (reach target location faster)?
 
-                keys = pygame.key.get_pressed()
+                # keys = pygame.key.get_pressed()
                 if keys[pygame.K_q]:
                         print('stat: ', self.get_state()[4])
                 if self.generateDatabase:
@@ -400,6 +427,19 @@ class KeyboardPlayerPyGame(Player):
         # Display the first-person view image on the pygame screen
         rgb = convert_opencv_img_to_pygame(fpv)
         self.screen.blit(rgb, (0, 0))
+        
+        # Draw player
+        rotated_arrow = [(p[0] * math.sin(self.player_angle) - p[1] * math.cos(self.player_angle),
+                        p[0] * math.cos(self.player_angle) + p[1] * math.sin(self.player_angle))
+                        for p in self.arrow_points]
+        transformed_arrow = [(int(p[0] + self.player_pos[0]), int(p[1] + self.player_pos[1])) for p in rotated_arrow]
+        pygame.draw.polygon(self.screen, BLACK, transformed_arrow)
+
+        # Draw path
+        self.path.append(self.player_pos[:])
+        for i in range(len(self.path)-1):
+            pygame.draw.line(self.screen, RED, self.path[i], self.path[i+1], 2)
+
         pygame.display.update()
 
 
