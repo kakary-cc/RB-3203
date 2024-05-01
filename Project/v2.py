@@ -109,6 +109,13 @@ class KeyboardPlayerPyGame(Player):
                     # If yes, bitwise XOR the current action with the new one
                     # This allows for updating the accumulated actions to reflect the current sate of the keyboard inputs accurately
                     self.last_act ^= self.keymap[event.key]
+                    # Change arrow direction
+                else:
+                    if event.key == pygame.K_LEFT:
+                        self.player_angle += math.pi / 2
+                    if event.key == pygame.K_RIGHT:
+                        self.player_angle -= math.pi / 2
+
         return self.last_act
 
     def show_target_images(self):
@@ -403,10 +410,10 @@ class KeyboardPlayerPyGame(Player):
             if keys[pygame.K_s]:
                 self.player_pos[0] -= self.player_xspeed * math.cos(self.player_angle)
                 self.player_pos[1] += self.player_xspeed * math.sin(self.player_angle)
-            if keys[pygame.K_a]:
-                self.player_angle += self.player_rspeed
-            if keys[pygame.K_d]:
-                self.player_angle -= self.player_rspeed
+            # if keys[pygame.K_a]:
+            #     self.player_angle += self.player_rspeed
+            # if keys[pygame.K_d]:
+            #     self.player_angle -= self.player_rspeed
 
             # If in exploration stage
             if self._state[1] == Phase.EXPLORATION:
