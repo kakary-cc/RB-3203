@@ -391,6 +391,8 @@ class KeyboardPlayerPyGame(Player):
                 # keys = pygame.key.get_pressed()
                 if keys[pygame.K_q]:
                         print('stat: ', self.get_state()[4])
+                        self.K = self.get_camera_intrinsic_matrix()
+                        print(self.K)
                 if self.generateDatabase:
                     # Only save FPV when moving
                     if keys[pygame.K_w] or keys[pygame.K_a] or keys[pygame.K_s] or keys[pygame.K_d]:
