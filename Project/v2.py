@@ -167,26 +167,40 @@ class KeyboardPlayerPyGame(Player):
             print('error displaying image')
         cv2.waitKey(1)
 
-    def display_imgs_from_id(self, id1, id2, id3, window_name):
-        """
-        Display 2 images from database based on its ID using OpenCV in 2x1 grid manner
-        """
-        path1 = self.save_dir + str(id1) + ".jpg"
-        path2 = self.save_dir + str(id2) + ".jpg"
-        path3 = self.save_dir + str(id3) + ".jpg"
-        img1 = cv2.imread(path1)
-        img2 = cv2.imread(path2)
-        img3 = cv2.imread(path3)
-        try:
-            concat_img = cv2.hconcat([img1, img2, img3])
-            w, h = concat_img.shape[:2]
+    def display_imgs_from_ids(self, ids, window_name):
+        imgs = []
+
+        for image_id in ids:
+            path = self.save_dir + str(image_id) + ".jpg"
+            img = cv2.imread(path)
+            if img is not None:
+                imgs.append(img)
+            else:
+                print(f"Image ID {image_id} not found or could not be loaded.")
+
+        if len(imgs) > 0:
+            concat_img = cv2.hconcat(imgs)
+
+            h = concat_img.shape[1] // len(imgs)
+            w = concat_img.shape[0]
             color = (0, 0, 0)
-            concat_img = cv2.line(concat_img, (int(h/3), 0), (int(h/3), w), color, 2)
-            concat_img = cv2.line(concat_img, (int(2*h/3), 0), (int(2*h/3), w), color, 2)
+            w_offset = 25
+            h_offset = 10
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            line = cv2.LINE_AA
+            size = 0.75
+            stroke = 1
+
+            cv2.putText(concat_img, '#%s' % ids[0], (h_offset, w_offset), font, size, color, stroke, line)
+
+            for i in range(1, len(imgs)):
+                concat_img = cv2.line(concat_img, (i * h, 0), (i * h, w), color, 2)
+                cv2.putText(concat_img, '#%s' % ids[i], (h_offset + i * h, w_offset), font, size, color, stroke, line)
+
             cv2.imshow(window_name, concat_img)
-        except:
-            print('error displaying image')
-        cv2.waitKey(1)
+            cv2.waitKey(1)
+        else:
+            print("No valid images to display.")
 
     def compute_sift_features(self):
         """
@@ -302,10 +316,17 @@ class KeyboardPlayerPyGame(Player):
             tree = BallTree(self.database, leaf_size=60)
             self.tree = tree
 
-            # Get the neighbor nearest to the front view of the target image and set it as goal
+            # Get the neighbor nearest to the choice of the target image and set it as goal
             targets = self.get_target_images()
-            index = self.get_neighbor(targets[0])
-            self.goal = index
+
+            candidates = []
+            for i in range(len(targets)):
+                candidates.append(self.get_neighbor(targets[i]))
+            self.display_imgs_from_ids(candidates, f'Candidates')
+            choice = input("Select best match target [1-4]:")
+            choice = int(choice) - 1
+            self.goal = candidates[choice]
+            cv2.destroyWindow(f'Candidates')
             print(f'Goal ID: {self.goal}')
 
     def pre_navigation(self):
@@ -314,6 +335,10 @@ class KeyboardPlayerPyGame(Player):
         """
         super(KeyboardPlayerPyGame, self).pre_navigation()
         self.pre_nav_compute()
+        if self.screen is not None:
+            h, w, _ = self.fpv.shape
+            self.player_pos = [400+w, 750]
+            self.path = [self.player_pos[:]]
         
     def display_next_best_view(self):
         """
@@ -327,7 +352,7 @@ class KeyboardPlayerPyGame(Player):
         index = self.get_neighbor(self.fpv)
         # Display the image 5 frames ahead of the neighbor, so that next best view is not exactly same as current FPV
         # self.display_img_from_id(index+5, f'Next Best View')
-        self.display_imgs_from_id(index+2, index+5, self.goal, f'Next Best Views')
+        self.display_imgs_from_ids([index+2, index+5, self.goal], f'Next Best Views')
         # Display the next best view id along with the goal id to understand how close/far we are from the goal
         print(f'Next View ID: {index+2}, {index+5} || Goal ID: {self.goal}')
 
@@ -417,9 +442,10 @@ class KeyboardPlayerPyGame(Player):
             # If in navigation stage
             elif self._state[1] == Phase.NAVIGATION:
                 # TODO: could you do something else, something smarter than simply getting the image closest to the current FPV?
-                self.rotationFlag = not self.rotationFlag
-                if self.rotationFlag:
-                    self.display_next_best_view()
+                # self.rotationFlag = not self.rotationFlag
+                # if self.rotationFlag:
+                #     self.display_next_best_view()
+                self.display_next_best_view()
                 # # Key the state of the keys
                 # keys = pygame.key.get_pressed()
                 # # If 'q' key is pressed, then display the next best view based on the current FPV
