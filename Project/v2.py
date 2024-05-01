@@ -26,10 +26,20 @@ class KeyboardPlayerPyGame(Player):
         self.count = 0  # Counter for saving images
         self.save_dir = "data/images/"  # Directory to save images to
 
-        if (sys.argv[1] and sys.argv[1] == ''): print(sys.argv)
-        self.generateDatabase = False # Default True
-        self.generateCodebook = False # Default False
         self.rotationFlag = True
+        # Default: Nav phase only
+        self.generateDatabase = False
+        self.generateCodebook = False
+        if (len(sys.argv) > 1):
+            print(sys.argv)
+            if (sys.argv[1] == 'all'):
+                self.generateDatabase = True
+                self.generateCodebook = True
+            elif (sys.argv[1] == 'exp'):
+                self.generateDatabase = True
+                self.generateCodebook = False
+            else:
+                print('Bad argument!')
 
         # Initialize SIFT detector
         # SIFT stands for Scale-Invariant Feature Transform
