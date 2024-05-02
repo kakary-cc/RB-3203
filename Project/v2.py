@@ -45,6 +45,8 @@ class KeyboardPlayerPyGame(Player):
             else:
                 print('Bad argument!')
 
+        self.pre_nav_compute_finish = False
+
         # Initialize SIFT detector
         # SIFT stands for Scale-Invariant Feature Transform
         self.sift = cv2.SIFT_create()
@@ -286,6 +288,8 @@ class KeyboardPlayerPyGame(Player):
         """
         Build BallTree for nearest neighbor search and find the goal ID
         """
+        if not self.generateDatabase:
+            [self.count, self.database] = pickle.load(open("database.pkl", "rb"))
         # If this function is called after the game has started
         if self.count > 0:
 
@@ -294,6 +298,8 @@ class KeyboardPlayerPyGame(Player):
             else:
                 [_, self.database] = pickle.load(open("database.pkl", "rb"))
                 print("Loaded database from pickle")
+                # tree = BallTree(self.database, leaf_size=60)
+                # self.tree = tree
 
             if self.generateCodebook:
                 print('Making codebook...', end="")
@@ -326,6 +332,9 @@ class KeyboardPlayerPyGame(Player):
             # Get the neighbor nearest to the choice of the target image and set it as goal
             targets = self.get_target_images()
 
+            # while(not self.pre_nav_compute_finish):
+            #     ...
+
             candidates = []
             for i in range(len(targets)):
                 candidates.append(self.get_neighbor(targets[i]))
@@ -335,6 +344,7 @@ class KeyboardPlayerPyGame(Player):
             self.goal = candidates[choice]
             cv2.destroyWindow(f'Candidates')
             print(f'Goal ID: {self.goal}')
+            self.pre_nav_compute_finish = True
 
     def pre_navigation(self):
         """
@@ -449,10 +459,12 @@ class KeyboardPlayerPyGame(Player):
             # If in navigation stage
             elif self._state[1] == Phase.NAVIGATION:
                 # TODO: could you do something else, something smarter than simply getting the image closest to the current FPV?
-                # self.rotationFlag = not self.rotationFlag
-                # if self.rotationFlag:
+                self.rotationFlag = not self.rotationFlag
+                if self.rotationFlag:
+                    if self.pre_nav_compute_finish:
+                        self.display_next_best_view()
+                # if self.run_pre_nav:
                 #     self.display_next_best_view()
-                self.display_next_best_view()
                 # # Key the state of the keys
                 # keys = pygame.key.get_pressed()
                 # # If 'q' key is pressed, then display the next best view based on the current FPV
